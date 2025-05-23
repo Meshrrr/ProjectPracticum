@@ -19,8 +19,8 @@ export default function Home({ showAlert }) {
       }
     };
     loadVacancies();
-  }, [department, showAlert]);
-
+  }, [department])
+  
   return (
     <div className="container mt-4">
       <div className="d-flex justify-content-between align-items-center mb-4">

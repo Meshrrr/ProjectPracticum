@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Home from './pages/Home';
@@ -14,10 +14,10 @@ import Alert from './components/Alert';
 export default function App() {
   const [alert, setAlert] = useState(null);
 
-  const showAlert = (type, message) => {
+  const showAlert = useCallback((type, message) => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 5000);
-  };
+  }, []);
 
   return (
     <AuthProvider>
