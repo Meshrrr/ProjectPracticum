@@ -11,17 +11,12 @@ from auth import create_access_token, get_current_user, oauth2_scheme
 from database import engine, get_db
 import logging
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["http://localhost:3000"],  # Или "*" для разработки
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
