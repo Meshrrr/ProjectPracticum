@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean
 from sqlalchemy.orm import declarative_base, relationship
 from passlib.context import CryptContext
 
@@ -12,7 +12,6 @@ class User(Base):
     email = Column(String, unique=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     role = Column(String, nullable=False)  # student, employer, admin
-
     vacancies = relationship("Vacancy", back_populates="employer")
     applications = relationship("Application", back_populates="student")
 
@@ -37,7 +36,7 @@ class Application(Base):
     id = Column(Integer, primary_key=True)
     student_id = Column(Integer, ForeignKey("users.id"))
     vacancy_id = Column(Integer, ForeignKey("vacancies.id"))
-    status = Column(String(20), default="pending")  # pending, accepted, rejected
+    status = Column(String(20), default="pending")
     cover_letter = Column(String(500))
 
     student = relationship("User", back_populates="applications")

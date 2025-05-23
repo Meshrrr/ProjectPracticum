@@ -11,15 +11,21 @@ class ApplicationCreate(BaseModel):
     vacancy_id: int
     cover_letter: str
 
-class UserCreate(BaseModel):
+class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+class UserCreate(UserLogin):
     role: str
 
 class UserOut(BaseModel):
     id: int
     email: EmailStr
     role: str
+
+    class Config:
+        orm_mode = True
+
 
 class Token(BaseModel):
     access_token: str

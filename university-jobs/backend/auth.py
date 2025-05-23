@@ -7,6 +7,7 @@ import os
 from dotenv import load_dotenv
 from models import User
 from schemas import Token
+from database import get_db
 
 load_dotenv()
 
@@ -16,17 +17,15 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-
 async def get_current_user(
-        db: Session = Depends(get_db),
-        token: str = Depends(oauth2_scheme)
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
 ):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

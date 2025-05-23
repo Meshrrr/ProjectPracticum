@@ -1,43 +1,32 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from dotenv import load_dotenv
-import os
+from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-from jose import JWTError, jwt
 from typing import Optional
 from models import Base, User, Vacancy, Application, pwd_context
 from schemas import (UserCreate, UserOut, Token,
                      VacancyCreate, VacancyOut,
-                     ApplicationCreate, ApplicationOut)
+                     ApplicationCreate, ApplicationOut, UserLogin)
 from auth import create_access_token, get_current_user, oauth2_scheme
+from database import engine, get_db
+import logging
 
-load_dotenv()
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Настройка CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
-
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:kirill180305@localhost:5432/university_jobs")
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 
 @app.post("/register", response_model=UserOut)
 def register(user: UserCreate, db: Session = Depends(get_db)):
@@ -55,18 +44,20 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    return db_user
-
+    return {
+        "id": db_user.id,
+        "email": db_user.email,
+        "role": db_user.role,
+    }
 
 @app.post("/token", response_model=Token)
-def login(user: UserCreate, db: Session = Depends(get_db)):
+def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
     if not db_user or not db_user.verify_password(user.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
         )
-
     access_token = create_access_token({"sub": db_user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -78,26 +69,19 @@ def create_vacancy(
         current_user: User = Depends(get_current_user)
 ):
     if current_user.role not in ["employer", "admin"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only employers can create vacancies"
-        )
+        raise HTTPException(status_code=403, detail="Only employers can create vacancies")
 
-    db_vacancy = Vacancy(
-        **vacancy.dict(),
-        employer_id=current_user.id
-    )
+    db_vacancy = Vacancy(**vacancy.dict(), employer_id=current_user.id)
     db.add(db_vacancy)
     db.commit()
     db.refresh(db_vacancy)
     return db_vacancy
 
-
 @app.get("/vacancies", response_model=list[VacancyOut])
 def get_vacancies(
-        department: Optional[str] = None,
-        title: Optional[str] = None,
-        db: Session = Depends(get_db)
+    department: Optional[str] = None,
+    title: Optional[str] = None,
+    db: Session = Depends(get_db)
 ):
     query = db.query(Vacancy)
     if department:
@@ -106,12 +90,11 @@ def get_vacancies(
         query = query.filter(Vacancy.title.contains(title))
     return query.all()
 
-
 @app.post("/applications", response_model=ApplicationOut)
 def create_application(
-        application: ApplicationCreate,
-        db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user)
+    application: ApplicationCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     vacancy = db.query(Vacancy).filter(Vacancy.id == application.vacancy_id).first()
     if not vacancy:
@@ -130,6 +113,11 @@ def create_application(
     db.refresh(db_application)
     return db_application
 
+@app.get("/users/me", response_model=UserOut)
+async def read_users_me(
+    current_user: User = Depends(get_current_user)
+):
+    return current_user
 
 @app.on_event("startup")
 def on_startup():
